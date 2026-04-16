@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title>Stodol — цели, задачи, заметки</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+        }
+        body {
+            background: #f0f4f9;
+            padding: 1rem;
+        }
+        .app-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .top-bar {
+            background: white;
+            border-radius: 60px;
+            padding: 0.5rem 1.5rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+        }
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #2c5a6e, #3f7e6b);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+        .nav-tabs {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        .nav-item {
+            position: relative;
+        }
+        .nav-btn {
+            background: none;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            font-size: 1rem;
+            font-weight: 500;
+            border-radius: 40px;
+            color: #5f7d9c;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .nav-btn:hover {
+            background: #eef2fa;
+            color: #2c5a6e;
+        }
+        .nav-btn.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: white;
+            min-width: 200px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
+            z-index: 100;
+            padding: 0.5rem 0;
+        }
+        .nav-item:hover .dropdown-content {
+            display: block;
+        }
+        .dropdown-content a {
+            display: block;
+            padding: 0.6rem 1.2rem;
+            text-decoration: none;
+            color: #1e2a3e;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+        .dropdown-content a:hover {
+            background: #f0f4f9;
+        }
+        .user-info {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            background: #f0f4f9;
+            padding: 0.3rem 1rem;
+            border-radius: 40px;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .form-card {
+            background: white;
+            border-radius: 28px;
+            padding: 1.2rem;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+            margin-bottom: 1.5rem;
+        }
+        .form-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        .form-group {
+            flex: 1;
+            min-width: 150px;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 0.7rem;
+            border: 1px solid #cfdfed;
+            border-radius: 20px;
+        }
+        .create-task-btn, .add-okr-btn, .add-folder-btn, .add-note-btn {
+            background: #2c5a6e;
+            color: white;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 40px;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            cursor: pointer;
+        }
+        .tasks-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.2rem;
+        }
+        .task-card {
+            background: white;
+            border-radius: 28px;
+            padding: 1rem;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+            cursor: grab;
+        }
+        .task-card:active { cursor: grabbing; }
+        .status-new { border-left: 6px solid #5fa7cf; }
+        .status-in_progress { border-left: 6px solid #e6b422; }
+        .status-completed { border-left: 6px solid #4c9f70; opacity: 0.85; text-decoration: line-through; }
+        .status-cancelled { border-left: 6px solid #9aaebf; opacity: 0.8; text-decoration: line-through; }
+        .task-actions button {
+            background: #f0f3f8;
+            border: none;
+            padding: 0.3rem 0.8rem;
+            border-radius: 30px;
+            margin-right: 0.4rem;
+            margin-bottom: 0.4rem;
+            cursor: pointer;
+        }
+        /* Недельный план — горизонтальные фильтры */
+        .week-planner {
+            background: white;
+            border-radius: 28px;
+            padding: 1.2rem;
+            margin-bottom: 1.5rem;
+        }
+        .week-header {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            overflow-x: auto;
+            padding-bottom: 0.5rem;
+            -webkit-overflow-scrolling: touch;
+        }
+        .week-nav {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-shrink: 0;
+        }
+        .week-nav button {
+            background: #eef2fa;
+            border: none;
+            padding: 0.3rem 0.8rem;
+            border-radius: 30px;
+            cursor: pointer;
+        }
+        .week-date-range {
+            font-weight: 500;
+            min-width: 180px;
+            text-align: center;
+            font-size: 0.85rem;
+            white-space: nowrap;
+        }
+        .week-filters {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            flex-shrink: 0;
+        }
+        .week-filters select,
+        .week-filters button {
+            background: #eef2fa;
+            border: none;
+            padding: 0.3rem 0.8rem;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            white-space: nowrap;
+        }
+        .view-toggle {
+            display: flex;
+            gap: 0.5rem;
+            flex-shrink: 0;
+        }
+        .view-toggle button {
+            background: #eef2fa;
+            border: none;
+            padding: 0.3rem 1rem;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            white-space: nowrap;
+        }
+        .view-toggle button.active {
+            background: #2c5a6e;
+            color: white;
+        }
+        .week-days-vertical { display: flex; flex-direction: column; gap: 0.8rem; }
+        .day-row { display: flex; gap: 0.5rem; border-bottom: 1px solid #eef2fa; padding-bottom: 0.5rem; }
+        .day-name { width: 100px; font-weight: 600; color: #3f7e6b; }
+        .day-tasks { flex: 1; }
+        .task-item { display: flex; align-items: center; gap: 0.6rem; padding: 0.2rem 0; }
+        .task-item input { width: 20px; height: 20px; cursor: pointer; }
+        .week-days-horizontal { overflow-x: auto; }
+        .horizontal-grid { display: grid; grid-template-columns: repeat(7, minmax(180px, 1fr)); gap: 0.8rem; min-width: 700px; }
+        .day-col { background: #f8fafd; border-radius: 20px; padding: 0.8rem; }
+        .day-col-header { font-weight: 700; text-align: center; margin-bottom: 0.5rem; }
+        .okr-tree {
+            background: white;
+            border-radius: 28px;
+            padding: 1.5rem;
+        }
+        .objective-item {
+            margin-bottom: 1.5rem;
+            border-left: 4px solid #2c5a6e;
+            padding-left: 1rem;
+        }
+        .kr-item {
+            margin: 1rem 0 1rem 1.5rem;
+            border-left: 2px solid #e6b422;
+            padding-left: 1rem;
+        }
+        .initiative-item {
+            margin: 0.5rem 0 0.5rem 2rem;
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .notes-layout {
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .folders-sidebar {
+            width: 280px;
+            background: white;
+            border-radius: 28px;
+            padding: 1rem;
+        }
+        .folders-list {
+            margin-top: 1rem;
+        }
+        .folder-item {
+            padding: 0.7rem;
+            border-radius: 20px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.3rem;
+        }
+        .folder-item:hover {
+            background: #f0f4f9;
+        }
+        .folder-item.active {
+            background: #e2eafc;
+            font-weight: 600;
+        }
+        .folder-actions {
+            display: flex;
+            gap: 0.3rem;
+        }
+        .folder-actions button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        .notes-content {
+            flex: 1;
+            min-width: 250px;
+            background: white;
+            border-radius: 28px;
+            padding: 1rem;
+        }
+        .notes-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+            margin-top: 1rem;
+        }
+        .note-card {
+            background: #f8fafd;
+            border-radius: 20px;
+            padding: 0.8rem;
+            cursor: grab;
+        }
+        .note-card:active { cursor: grabbing; }
+        .note-card.dragging { opacity: 0.5; }
+        .note-title {
+            font-weight: 600;
+            margin-bottom: 0.3rem;
+            display: flex;
+            justify-content: space-between;
+        }
+        .note-preview {
+            font-size: 0.85rem;
+            color: #5f7d9c;
+        }
+        canvas { max-height: 250px; width: 100%; }
+        .modal {
+            display: none;
+            position: fixed;
+            top:0; left:0;
+            width:100%; height:100%;
+            background: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 32px;
+            padding: 1.5rem;
+            max-width: 500px;
+            width: 90%;
+        }
+        footer {
+            text-align: center;
+            font-size: 0.7rem;
+            margin: 2rem 0 1rem;
+            display: flex;
+            justify-content: center;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .privacy-link, .delete-all-link {
+            cursor: pointer;
+            text-decoration: underline;
+            color: #3f7e6b;
+            background: none;
+            border: none;
+            font-size: 0.7rem;
+        }
+        .delete-all-link {
+            color: #c7362b;
+        }
+        .temp-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+        .tag-badge { background: #e2eafc; padding: 0.2rem 0.7rem; border-radius: 30px; font-size: 0.75rem; }
+        .empty-message { text-align: center; padding: 2rem; color: #7e95af; }
+        .task-tag { background: #e2eafc; padding: 0.2rem 0.6rem; border-radius: 30px; font-size: 0.7rem; margin-right: 0.3rem; }
+        .task-meta { font-size: 0.75rem; color: #5f7d9c; margin: 0.3rem 0; }
+        @media (max-width: 800px) {
+            .week-filters select, .week-filters button, .view-toggle button {
+                font-size: 0.7rem;
+                padding: 0.2rem 0.5rem;
+            }
+            .week-date-range { font-size: 0.7rem; min-width: 140px; }
+            .week-nav button { padding: 0.2rem 0.6rem; }
+        }
+        @media (max-width: 760px) {
+            .top-bar { flex-direction: column; gap: 0.8rem; }
+            .nav-tabs { justify-content: center; }
+            .notes-layout { flex-direction: column; }
+            .folders-sidebar { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <div class="top-bar">
+        <div class="logo">📋 Stodol</div>
+        <div class="nav-tabs">
+            <div class="nav-item"><button class="nav-btn" data-tab="tasks">Задачи</button><div class="dropdown-content"><a data-tab="tasks">Мои задачи</a><a data-tab="tasks">Архив</a></div></div>
+            <div class="nav-item"><button class="nav-btn" data-tab="notes">Заметки</button><div class="dropdown-content"><a data-tab="notes">Все заметки</a><a data-tab="notes">Папки</a></div></div>
+            <div class="nav-item"><button class="nav-btn" data-tab="goals">Целеполагание</button><div class="dropdown-content"><a data-tab="goals">OKR</a></div></div>
+            <div class="nav-item"><button class="nav-btn disabled" data-tab="calendar" disabled style="opacity:0.5;">Календарь</button><div class="dropdown-content"><a style="color:#aaa;">Скоро</a></div></div>
+        </div>
+        <div id="authWidget" class="user-info"></div>
+    </div>
+
+    <!-- Вкладка Задачи -->
+    <div id="tasksTab" class="tab-content active">
+        <button id="showCreateTaskBtn" class="create-task-btn">+ Создать задачу</button>
+        <div id="taskForm" class="form-card" style="display: none;">
+            <div class="form-row"><div class="form-group"><label>Название *</label><input type="text" id="taskTitle" placeholder="Что нужно сделать?"></div>
+            <div class="form-group"><label>Дата выполнения</label><input type="date" id="taskDueDate"></div>
+            <div class="form-group"><label>Напоминание</label><input type="datetime-local" id="taskReminder"></div></div>
+            <div class="form-row"><div class="form-group"><label>Теги</label><div class="tag-input-group"><input type="text" id="tagInput" placeholder="тег"><button id="addTagBtn" type="button">+</button></div><div id="tempTagsContainer" class="temp-tags"></div></div>
+            <div class="form-group"><label>Комментарий</label><textarea id="taskComment" rows="2" maxlength="200"></textarea></div></div>
+            <button id="addTaskBtn">✨ Добавить задачу</button>
+            <button id="cancelTaskBtn" style="margin-left:0.5rem;">Отмена</button>
+        </div>
+
+        <!-- Недельный план с горизонтальными фильтрами -->
+        <div class="week-planner">
+            <div class="week-header">
+                <div class="week-nav">
+                    <button id="prevWeekBtn">◀</button>
+                    <span id="weekDateRange" class="week-date-range"></span>
+                    <button id="nextWeekBtn">▶</button>
+                </div>
+                <div class="week-filters">
+                    <select id="tagFilterSelect"><option value="">все теги</option></select>
+                    <select id="statusFilterSelect">
+                        <option value="all">все статусы</option>
+                        <option value="new">новая</option>
+                        <option value="in_progress">в работе</option>
+                        <option value="completed">выполнено</option>
+                        <option value="cancelled">отменено</option>
+                    </select>
+                    <button id="archiveToggleBtn">📦 Архив (скрыт)</button>
+                </div>
+                <div class="view-toggle" id="weekViewToggle">
+                    <button data-view="vertical" class="active">📋 Вертикальный</button>
+                    <button data-view="horizontal">📊 Горизонтальный</button>
+                </div>
+            </div>
+            <div id="weekContainer" class="week-days-vertical"></div>
+        </div>
+
+        <div id="tasksContainer" class="tasks-grid"></div>
+        <div id="analyticsCard" class="form-card"><h3>📊 Продуктивность за 7 дней</h3><canvas id="statsChart" width="400" height="200"></canvas></div>
+    </div>
+
+    <!-- Вкладка Заметки -->
+    <div id="notesTab" class="tab-content">
+        <div class="notes-layout">
+            <div class="folders-sidebar">
+                <button id="addFolderBtn" class="add-folder-btn" style="width:100%;">+ Новая папка</button>
+                <div id="foldersList" class="folders-list"></div>
+            </div>
+            <div class="notes-content">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h3 id="currentFolderTitle">Папка</h3>
+                    <button id="addNoteBtn" class="add-note-btn">+ Заметка</button>
+                </div>
+                <div id="notesGrid" class="notes-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Вкладка Целеполагание -->
+    <div id="goalsTab" class="tab-content">
+        <button id="addObjectiveBtn" class="add-okr-btn">+ Добавить цель (Objective)</button>
+        <div id="okrTree" class="okr-tree"></div>
+    </div>
+
+    <!-- Вкладка Календарь -->
+    <div id="calendarTab" class="tab-content"><div class="form-card" style="text-align:center;"><h3>📅 Календарь</h3><p>Функция появится в ближайшее время.</p></div></div>
+
+    <footer>
+        <button id="deleteAllDataBtn" class="delete-all-link">🗑️ Удалить все данные</button>
+        <button id="privacyBtn" class="privacy-link">🔒 Политика конфиденциальности</button>
+    </footer>
+</div>
+
+<!-- Модалки -->
+<div id="privacyModal" class="modal"><div class="modal-content"><h3>Политика конфиденциальности</h3><p>Ваши данные хранятся в Firebase. Вы можете удалить их кнопкой выше.</p><button id="closePrivacyBtn">Закрыть</button></div></div>
+<div id="confirmDeleteModal" class="modal"><div class="modal-content"><h3>Удаление всех данных</h3><p>Вы уверены, что хотите удалить все задачи?</p><button id="confirmDeleteYes">Да, удалить</button><button id="confirmDeleteNo">Отмена</button></div></div>
+<div id="linkTaskModal" class="modal"><div class="modal-content"><h3>Связать с задачей</h3><select id="taskSelectForLink"></select><button id="confirmLinkBtn">Связать</button><button id="closeLinkModal">Отмена</button></div></div>
+<div id="noteModal" class="modal"><div class="modal-content"><h3 id="noteModalTitle">Заметка</h3><input type="text" id="noteTitleInput" placeholder="Заголовок" style="margin-bottom:0.5rem;"><textarea id="noteContentInput" rows="5" placeholder="Содержание заметки..."></textarea><div style="margin-top:0.5rem;"><label><input type="checkbox" id="noteHasCheckbox"> С чекбоксами (каждая строка — пункт)</label></div><button id="saveNoteBtn" style="margin-top:1rem;">Сохранить</button><button id="cancelNoteBtn">Отмена</button><button id="deleteNoteBtn" style="background:#fee2e2; margin-left:0.5rem;">Удалить</button></div></div>
+<div id="folderModal" class="modal"><div class="modal-content"><h3>Папка</h3><input type="text" id="folderNameInput" placeholder="Название папки"><button id="saveFolderBtn" style="margin-top:1rem;">Сохранить</button><button id="cancelFolderBtn">Отмена</button><button id="deleteFolderBtn" style="background:#fee2e2; margin-left:0.5rem;">Удалить папку</button></div></div>
+
+<script type="module">
+    // Firebase config
+    const firebaseConfig = {
+        apiKey: "AIzaSyB8baDRTqe9MJatDx1RFIyClanisy9ejsU",
+        authDomain: "stodol-ed717.firebaseapp.com",
+        projectId: "stodol-ed717",
+        storageBucket: "stodol-ed717.firebasestorage.app",
+        messagingSenderId: "97983353190",
+        appId: "1:97983353190:web:49011f895c5af9757e78a7"
+    };
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { getFirestore, collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, onSnapshot, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const googleProvider = new GoogleAuthProvider();
+
+    let currentUser = null;
+    let tasks = [];
+    let okrs = [];
+    let folders = [];
+    let notes = [];
+    let currentFolderId = null;
+    let currentEditNoteId = null;
+    let currentEditFolderId = null;
+    let unsubscribeTasks = null;
+    let chartInstance = null;
+    let showArchived = false, currentTagFilter = "", currentStatusFilter = "all";
+    let weekViewMode = "vertical";
+    let weekOffset = 0;
+    let currentLinkContext = null;
+
+    // DOM
+    const authWidget = document.getElementById('authWidget');
+    const tasksContainer = document.getElementById('tasksContainer');
+    const weekContainer = document.getElementById('weekContainer');
+    const okrTreeDiv = document.getElementById('okrTree');
+    const showCreateBtn = document.getElementById('showCreateTaskBtn');
+    const taskFormDiv = document.getElementById('taskForm');
+    const addTaskBtn = document.getElementById('addTaskBtn');
+    const cancelTaskBtn = document.getElementById('cancelTaskBtn');
+    const tagFilterSelect = document.getElementById('tagFilterSelect');
+    const statusFilterSelect = document.getElementById('statusFilterSelect');
+    const archiveToggleBtn = document.getElementById('archiveToggleBtn');
+    const deleteAllBtn = document.getElementById('deleteAllDataBtn');
+    const privacyBtn = document.getElementById('privacyBtn');
+    const privacyModal = document.getElementById('privacyModal');
+    const closePrivacyBtn = document.getElementById('closePrivacyBtn');
+    const confirmDeleteModal = document.getElementById('confirmDeleteModal');
+    const confirmDeleteYes = document.getElementById('confirmDeleteYes');
+    const confirmDeleteNo = document.getElementById('confirmDeleteNo');
+    const addObjectiveBtn = document.getElementById('addObjectiveBtn');
+    const foldersListDiv = document.getElementById('foldersList');
+    const notesGridDiv = document.getElementById('notesGrid');
+    const addFolderBtn = document.getElementById('addFolderBtn');
+    const addNoteBtn = document.getElementById('addNoteBtn');
+    const currentFolderTitle = document.getElementById('currentFolderTitle');
+    const prevWeekBtn = document.getElementById('prevWeekBtn');
+    const nextWeekBtn = document.getElementById('nextWeekBtn');
+    const weekDateRangeSpan = document.getElementById('weekDateRange');
+
+    function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, m=>m==='&'?'&amp;':m==='<'?'&lt;':'&gt;'); }
+    function playBeep(freq=880, dur=0.1) { 
+        let ctx = new (window.AudioContext||window.webkitAudioContext)(); 
+        const osc=ctx.createOscillator(); const gain=ctx.createGain(); osc.connect(gain); gain.connect(ctx.destination); osc.frequency.value=freq; gain.gain.setValueAtTime(0.1,ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+dur); osc.start(); osc.stop(ctx.currentTime+dur); if(ctx.state==='suspended') ctx.resume(); 
+    }
+    function vibratePattern(p) { if(navigator.vibrate) navigator.vibrate(p); }
+
+    // Недельный план
+    function getWeekDays(offset=0) {
+        const now=new Date(); now.setDate(now.getDate()+(offset*7));
+        const day=now.getDay(); const start=new Date(now);
+        const diff=(day===0?-6:1)-day; start.setDate(now.getDate()+diff);
+        const days=[]; for(let i=0;i<7;i++){ const d=new Date(start); d.setDate(start.getDate()+i); days.push(d); }
+        return days;
+    }
+    function updateWeekDateRange() {
+        const days=getWeekDays(weekOffset);
+        weekDateRangeSpan.textContent = `${days[0].toLocaleDateString('ru-RU')} — ${days[6].toLocaleDateString('ru-RU')}`;
+    }
+    function renderWeekPlanner() {
+        if(!weekContainer) return;
+        const days=getWeekDays(weekOffset);
+        const tasksByDate={};
+        tasks.filter(t=>t.dueDate && t.status!=='cancelled').forEach(t=>{ const key=t.dueDate; if(!tasksByDate[key]) tasksByDate[key]=[]; tasksByDate[key].push(t); });
+        if(weekViewMode==='vertical'){
+            weekContainer.className='week-days-vertical';
+            weekContainer.innerHTML=days.map(day=>{ const dateKey=day.toISOString().slice(0,10); const dayName=day.toLocaleDateString('ru-RU',{weekday:'long'}); const dayTasks=tasksByDate[dateKey]||[]; const tasksHtml=dayTasks.map(t=>`<div class="task-item"><input type="checkbox" ${t.status==='completed'?'checked':''} data-id="${t.firebaseId}"><label>${escapeHtml(t.title)}</label></div>`).join('')||'<div class="empty-day">—</div>';
+                return `<div class="day-row"><div class="day-name">${dayName}<br><span style="font-size:0.7rem;">${dateKey}</span></div><div class="day-tasks">${tasksHtml}</div></div>`;
+            }).join('');
+        } else {
+            weekContainer.className='week-days-horizontal';
+            weekContainer.innerHTML=`<div class="horizontal-grid">${days.map(day=>{ const dateKey=day.toISOString().slice(0,10); const dayTasks=tasksByDate[dateKey]||[]; const tasksHtml=dayTasks.map(t=>`<div class="task-item"><input type="checkbox" ${t.status==='completed'?'checked':''} data-id="${t.firebaseId}"><label>${escapeHtml(t.title)}</label></div>`).join('')||'<div class="empty-day">—</div>';
+                return `<div class="day-col"><div class="day-col-header">${day.toLocaleDateString('ru-RU',{weekday:'short'})}</div><div class="day-col-date">${dateKey}</div><div class="day-col-tasks">${tasksHtml}</div></div>`;
+            }).join('')}</div>`;
+        }
+        document.querySelectorAll('#weekContainer input[type="checkbox"]').forEach(cb=>cb.addEventListener('change',async(e)=>{ const task=tasks.find(t=>t.firebaseId===cb.dataset.id); if(task && task.status!=='cancelled'){ await updateDoc(doc(db,'tasks',task.firebaseId),{status:cb.checked?'completed':'new'}); playBeep(880,0.1); } else if(task?.status==='cancelled') cb.checked=false; }));
+    }
+    function prevWeek() { weekOffset--; updateWeekDateRange(); renderWeekPlanner(); }
+    function nextWeek() { weekOffset++; updateWeekDateRange(); renderWeekPlanner(); }
+
+    // Задачи
+    async function addTask() { 
+        if(!currentUser) return; 
+        const title=document.getElementById('taskTitle').value.trim(); 
+        if(!title){ alert('Введите название'); return; }
+        const dueDate=document.getElementById('taskDueDate').value; 
+        const reminder=document.getElementById('taskReminder').value; 
+        const commentText=document.getElementById('taskComment').value.trim().substring(0,200); 
+        const tags=Array.from(document.querySelectorAll('#tempTagsContainer .tag-badge')).map(el=>el.dataset.tag); 
+        await addDoc(collection(db,'tasks'),{ title, dueDate:dueDate||null, reminder:reminder||null, tags, comments:commentText?[{text:commentText,timestamp:new Date().toISOString()}]:[], status:'new', order:tasks.length, userId:currentUser.uid, createdAt:new Date().toISOString() }); 
+        playBeep(1318,0.1); 
+        document.getElementById('taskTitle').value=''; document.getElementById('taskComment').value=''; document.getElementById('tempTagsContainer').innerHTML=''; document.getElementById('tagInput').value=''; document.getElementById('taskDueDate').value=''; document.getElementById('taskReminder').value=''; 
+        taskFormDiv.style.display='none'; 
+    }
+    async function changeStatus(id,status){ const task=tasks.find(t=>t.firebaseId===id); if(task && task.status!=='completed' && task.status!=='cancelled'){ await updateDoc(doc(db,'tasks',id),{status}); playBeep(1046,0.15); vibratePattern(30); } }
+    async function deleteAllUserData(){ if(!currentUser) return; const q=query(collection(db,'tasks'),where('userId','==',currentUser.uid)); const snap=await getDocs(q); const batch=writeBatch(db); snap.forEach(d=>batch.delete(d.ref)); await batch.commit(); const okrQ=query(collection(db,'okrs'),where('userId','==',currentUser.uid)); const okrSnap=await getDocs(okrQ); okrSnap.forEach(d=>batch.delete(d.ref)); await batch.commit(); const foldersQ=query(collection(db,'folders'),where('userId','==',currentUser.uid)); const foldersSnap=await getDocs(foldersQ); foldersSnap.forEach(d=>batch.delete(d.ref)); await batch.commit(); const notesQ=query(collection(db,'notes'),where('userId','==',currentUser.uid)); const notesSnap=await getDocs(notesQ); notesSnap.forEach(d=>batch.delete(d.ref)); await batch.commit(); playBeep(440,0.3); alert('Все данные удалены'); }
+    function renderTasksGrid(){
+        let filtered=tasks.filter(t=>{ const arch=(t.status==='completed'||t.status==='cancelled'); if(showArchived!==arch) return false; if(currentStatusFilter!=='all' && t.status!==currentStatusFilter) return false; if(currentTagFilter && !(t.tags||[]).includes(currentTagFilter)) return false; return true; });
+        filtered.sort((a,b)=>(a.order||0)-(b.order||0));
+        if(!filtered.length){ tasksContainer.innerHTML='<div class="empty-message">📭 Нет задач</div>'; return; }
+        tasksContainer.innerHTML=filtered.map(t=>`<div class="task-card status-${t.status}" data-id="${t.firebaseId}"><strong>${escapeHtml(t.title)}</strong><div class="task-meta">📅 ${t.dueDate||'—'} ⏰ ${t.reminder?.replace('T',' ')||'—'}</div><div>${(t.tags||[]).map(tg=>`<span class="task-tag">#${escapeHtml(tg)}</span>`).join(' ')}</div><div class="task-actions"><button class="take-work" data-id="${t.firebaseId}">🚀 Взять в работу</button><button class="complete-task" data-id="${t.firebaseId}">✅ Выполнено</button><button class="cancel-task" data-id="${t.firebaseId}">❌ Отменено</button></div></div>`).join('');
+        document.querySelectorAll('.take-work').forEach(btn=>btn.addEventListener('click',e=>changeStatus(btn.dataset.id,'in_progress')));
+        document.querySelectorAll('.complete-task').forEach(btn=>btn.addEventListener('click',e=>changeStatus(btn.dataset.id,'completed')));
+        document.querySelectorAll('.cancel-task').forEach(btn=>btn.addEventListener('click',e=>changeStatus(btn.dataset.id,'cancelled')));
+    }
+    function updateAnalytics(){ 
+        if(!currentUser || !chartInstance) return; 
+        const last7=[]; for(let i=6;i>=0;i--){const d=new Date(); d.setDate(d.getDate()-i); last7.push(d.toISOString().slice(0,10));} 
+        const added=Array(7).fill(0), completed=Array(7).fill(0); 
+        tasks.forEach(t=>{ const created=t.createdAt?.slice(0,10); const idx=last7.indexOf(created); if(idx!==-1) added[idx]++; if(t.status==='completed'){ const compDate=t.completedAt?.slice(0,10)||new Date().toISOString().slice(0,10); const idxC=last7.indexOf(compDate); if(idxC!==-1) completed[idxC]++; } }); 
+        chartInstance.data.datasets[0].data=added; chartInstance.data.datasets[1].data=completed; chartInstance.data.labels=last7; chartInstance.update(); 
+    }
+    function updateTagFilter(){ 
+        const allTags=new Set(); tasks.forEach(t=>(t.tags||[]).forEach(tg=>allTags.add(tg))); 
+        tagFilterSelect.innerHTML='<option value="">все теги</option>'+Array.from(allTags).map(t=>`<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join(''); 
+        tagFilterSelect.value=currentTagFilter; 
+    }
+    function subscribeToTasks(userId){ 
+        if(unsubscribeTasks) unsubscribeTasks(); 
+        const q=query(collection(db,'tasks'),where('userId','==',userId)); 
+        unsubscribeTasks=onSnapshot(q,(snap)=>{ tasks=snap.docs.map(d=>({firebaseId:d.id,...d.data()})); renderTasksGrid(); renderWeekPlanner(); updateAnalytics(); updateTagFilter(); }); 
+    }
+
+    // OKR
+    async function loadOkrs(){ if(!currentUser) return; const q=query(collection(db,'okrs'),where('userId','==',currentUser.uid)); const snap=await getDocs(q); okrs=snap.docs.map(d=>({id:d.id,...d.data()})); renderOkrTree(); }
+    function renderOkrTree(){
+        if(!okrTreeDiv) return;
+        okrTreeDiv.innerHTML=okrs.map(obj=>`<div class="objective-item"><div><strong>🎯 ${escapeHtml(obj.title)}</strong> <button class="add-kr-btn" data-id="${obj.id}">+ KR</button> <button class="link-obj-task" data-id="${obj.id}">🔗 Связать с задачей</button>${obj.linkedTaskIds?.length?` <span style="font-size:0.7rem;">(задач: ${obj.linkedTaskIds.length})</span>`:''}</div>${(obj.keyResults||[]).map(kr=>`<div class="kr-item"><div>📌 ${escapeHtml(kr.title)} <button class="add-initiative-btn" data-obj="${obj.id}" data-kr="${kr.id}">+ Инициатива</button> <button class="link-kr-task" data-obj="${obj.id}" data-kr="${kr.id}">🔗 Связать с задачей</button>${kr.linkedTaskIds?.length?` <span style="font-size:0.7rem;">(задач: ${kr.linkedTaskIds.length})</span>`:''}</div>${(kr.initiatives||[]).map(init=>`<div class="initiative-item">• ${escapeHtml(init.title)} <button class="link-init-task" data-obj="${obj.id}" data-kr="${kr.id}" data-init="${init.id}">🔗 Связать с задачей</button>${init.linkedTaskIds?.length?` <span style="font-size:0.7rem;">(задач: ${init.linkedTaskIds.length})</span>`:''}</div>`).join('')}</div>`).join('')}</div>`).join('');
+        document.querySelectorAll('.add-kr-btn').forEach(btn=>btn.addEventListener('click',async()=>{ const title=prompt('Название ключевого результата:'); if(title){ const obj=okrs.find(o=>o.id===btn.dataset.id); obj.keyResults=obj.keyResults||[]; obj.keyResults.push({id:Date.now().toString(),title,initiatives:[],linkedTaskIds:[]}); await updateDoc(doc(db,'okrs',obj.id),{keyResults:obj.keyResults}); loadOkrs(); } }));
+        document.querySelectorAll('.add-initiative-btn').forEach(btn=>btn.addEventListener('click',async()=>{ const title=prompt('Название инициативы:'); if(title){ const obj=okrs.find(o=>o.id===btn.dataset.obj); const kr=obj.keyResults.find(k=>k.id===btn.dataset.kr); kr.initiatives=kr.initiatives||[]; kr.initiatives.push({id:Date.now().toString(),title,linkedTaskIds:[]}); await updateDoc(doc(db,'okrs',obj.id),{keyResults:obj.keyResults}); loadOkrs(); } }));
+        document.querySelectorAll('.link-obj-task').forEach(btn=>btn.addEventListener('click',()=>openLinkModal('objective',btn.dataset.id)));
+        document.querySelectorAll('.link-kr-task').forEach(btn=>btn.addEventListener('click',()=>openLinkModal('keyResult',btn.dataset.kr,{objId:btn.dataset.obj})));
+        document.querySelectorAll('.link-init-task').forEach(btn=>btn.addEventListener('click',()=>openLinkModal('initiative',btn.dataset.init,{objId:btn.dataset.obj,krId:btn.dataset.kr})));
+    }
+    async function addObjective(){ const title=prompt('Название цели (Objective):'); if(title && currentUser){ await addDoc(collection(db,'okrs'),{title,keyResults:[],userId:currentUser.uid,linkedTaskIds:[]}); loadOkrs(); } }
+    function openLinkModal(type, id, parent=null){ currentLinkContext={type,id,parent}; document.getElementById('taskSelectForLink').innerHTML='<option value="">Выберите задачу</option>'+tasks.map(t=>`<option value="${t.firebaseId}">${escapeHtml(t.title)}</option>`).join(''); document.getElementById('linkTaskModal').style.display='flex'; }
+    async function confirmLink(){ 
+        const taskId=document.getElementById('taskSelectForLink').value; if(!taskId || !currentLinkContext) return; 
+        const {type,id,parent}=currentLinkContext; 
+        if(type==='objective'){ const obj=okrs.find(o=>o.id===id); if(obj){ obj.linkedTaskIds=obj.linkedTaskIds||[]; if(!obj.linkedTaskIds.includes(taskId)) obj.linkedTaskIds.push(taskId); await updateDoc(doc(db,'okrs',obj.id),{linkedTaskIds:obj.linkedTaskIds}); } } 
+        else if(type==='keyResult'){ const obj=okrs.find(o=>o.id===parent.objId); const kr=obj.keyResults.find(k=>k.id===id); kr.linkedTaskIds=kr.linkedTaskIds||[]; if(!kr.linkedTaskIds.includes(taskId)) kr.linkedTaskIds.push(taskId); await updateDoc(doc(db,'okrs',obj.id),{keyResults:obj.keyResults}); } 
+        else if(type==='initiative'){ const obj=okrs.find(o=>o.id===parent.objId); const kr=obj.keyResults.find(k=>k.id===parent.krId); const init=kr.initiatives.find(i=>i.id===id); init.linkedTaskIds=init.linkedTaskIds||[]; if(!init.linkedTaskIds.includes(taskId)) init.linkedTaskIds.push(taskId); await updateDoc(doc(db,'okrs',obj.id),{keyResults:obj.keyResults}); } 
+        playBeep(660,0.1); document.getElementById('linkTaskModal').style.display='none'; loadOkrs(); 
+    }
+
+    // Заметки и папки
+    async function loadFolders(){ if(!currentUser) return; const q=query(collection(db,'folders'),where('userId','==',currentUser.uid)); const snap=await getDocs(q); folders=snap.docs.map(d=>({id:d.id,...d.data()})); if(!folders.find(f=>f.name==='Новое')){ const defaultFolder={name:'Новое',userId:currentUser.uid,order:0}; const ref=await addDoc(collection(db,'folders'),defaultFolder); folders.push({id:ref.id,...defaultFolder}); } renderFoldersList(); }
+    async function loadNotes(){ if(!currentUser) return; const q=query(collection(db,'notes'),where('userId','==',currentUser.uid)); const snap=await getDocs(q); notes=snap.docs.map(d=>({id:d.id,...d.data()})); renderNotesList(); }
+    function renderFoldersList(){ foldersListDiv.innerHTML=folders.map(f=>`<div class="folder-item ${currentFolderId===f.id?'active':''}" data-id="${f.id}"><span>📁 ${escapeHtml(f.name)}</span><div class="folder-actions"><button class="edit-folder" data-id="${f.id}">✏️</button><button class="delete-folder" data-id="${f.id}">🗑️</button></div></div>`).join(''); attachFolderEvents(); }
+    function attachFolderEvents(){ document.querySelectorAll('.folder-item').forEach(el=>{ el.addEventListener('click',(e)=>{ if(e.target.classList.contains('edit-folder')||e.target.classList.contains('delete-folder')) return; currentFolderId=el.dataset.id; currentFolderTitle.textContent=escapeHtml(folders.find(f=>f.id===currentFolderId)?.name||'Заметки'); renderFoldersList(); renderNotesList(); }); }); document.querySelectorAll('.edit-folder').forEach(btn=>btn.addEventListener('click',()=>openFolderModal(btn.dataset.id))); document.querySelectorAll('.delete-folder').forEach(btn=>btn.addEventListener('click',async()=>{ if(confirm('Удалить папку? Заметки перейдут в "Новое"')){ const defaultFolder=folders.find(f=>f.name==='Новое'); const folderNotes=notes.filter(n=>n.folderId===btn.dataset.id); for(let note of folderNotes){ await updateDoc(doc(db,'notes',note.id),{folderId:defaultFolder.id}); } await deleteDoc(doc(db,'folders',btn.dataset.id)); loadFolders(); loadNotes(); } })); }
+    function renderNotesList(){ if(!currentFolderId) return; const folderNotes=notes.filter(n=>n.folderId===currentFolderId); notesGridDiv.innerHTML=folderNotes.map(n=>`<div class="note-card" draggable="true" data-id="${n.id}"><div class="note-title"><span>${escapeHtml(n.title||'Без названия')}</span><button class="edit-note" data-id="${n.id}">✏️</button></div><div class="note-preview">${n.hasCheckbox ? '☐ ' : ''}${escapeHtml(n.content?.substring(0,30)||'')}${(n.content?.length||0)>30?'…':''}</div></div>`).join(''); document.querySelectorAll('.edit-note').forEach(btn=>btn.addEventListener('click',()=>openNoteModal(btn.dataset.id))); initNotesDragAndDrop(); }
+    let dragNoteId=null; function initNotesDragAndDrop(){ const cards=document.querySelectorAll('.note-card'); cards.forEach(c=>{ c.addEventListener('dragstart',(e)=>{ dragNoteId=e.target.closest('.note-card').dataset.id; e.dataTransfer.effectAllowed='move'; e.target.closest('.note-card').classList.add('dragging'); }); c.addEventListener('dragover',(e)=>e.preventDefault()); c.addEventListener('dragend',(e)=>{ e.target.closest('.note-card')?.classList.remove('dragging'); dragNoteId=null; }); }); document.querySelectorAll('.folder-item').forEach(f=>{ f.addEventListener('dragover',(e)=>e.preventDefault()); f.addEventListener('drop',async(e)=>{ e.preventDefault(); const folderId=f.dataset.id; if(dragNoteId && folderId){ const note=notes.find(n=>n.id===dragNoteId); if(note && note.folderId!==folderId){ await updateDoc(doc(db,'notes',note.id),{folderId}); loadNotes(); playBeep(660,0.1); } } }); }); }
+    async function addFolder(){ const name=prompt('Название папки:'); if(name && currentUser){ await addDoc(collection(db,'folders'),{name,userId:currentUser.uid,order:folders.length}); loadFolders(); } }
+    async function openNoteModal(id=null){ currentEditNoteId=id; const note=id?notes.find(n=>n.id===id):null; document.getElementById('noteTitleInput').value=note?.title||''; document.getElementById('noteContentInput').value=note?.content||''; document.getElementById('noteHasCheckbox').checked=note?.hasCheckbox||false; document.getElementById('noteModalTitle').textContent=id?'Редактировать заметку':'Новая заметка'; document.getElementById('deleteNoteBtn').style.display=id?'inline-block':'none'; document.getElementById('noteModal').style.display='flex'; }
+    async function saveNote(){ const title=document.getElementById('noteTitleInput').value; const content=document.getElementById('noteContentInput').value; const hasCheckbox=document.getElementById('noteHasCheckbox').checked; if(currentEditNoteId){ await updateDoc(doc(db,'notes',currentEditNoteId),{title,content,hasCheckbox}); } else { await addDoc(collection(db,'notes'),{title,content,hasCheckbox,folderId:currentFolderId||folders.find(f=>f.name==='Новое')?.id,userId:currentUser.uid,createdAt:new Date().toISOString()}); } document.getElementById('noteModal').style.display='none'; loadNotes(); playBeep(880,0.1); }
+    async function deleteNote(){ if(confirm('Удалить заметку?')){ await deleteDoc(doc(db,'notes',currentEditNoteId)); document.getElementById('noteModal').style.display='none'; loadNotes(); playBeep(440,0.2); } }
+    async function openFolderModal(id=null){ currentEditFolderId=id; const folder=id?folders.find(f=>f.id===id):null; document.getElementById('folderNameInput').value=folder?.name||''; document.getElementById('deleteFolderBtn').style.display=id?'inline-block':'none'; document.getElementById('folderModal').style.display='flex'; }
+    async function saveFolder(){ const name=document.getElementById('folderNameInput').value; if(currentEditFolderId){ await updateDoc(doc(db,'folders',currentEditFolderId),{name}); } else { await addDoc(collection(db,'folders'),{name,userId:currentUser.uid,order:folders.length}); } document.getElementById('folderModal').style.display='none'; loadFolders(); playBeep(880,0.1); }
+    async function deleteFolderModal(){ if(confirm('Удалить папку? Заметки перейдут в "Новое"')){ const defaultFolder=folders.find(f=>f.name==='Новое'); const folderNotes=notes.filter(n=>n.folderId===currentEditFolderId); for(let note of folderNotes){ await updateDoc(doc(db,'notes',note.id),{folderId:defaultFolder.id}); } await deleteDoc(doc(db,'folders',currentEditFolderId)); document.getElementById('folderModal').style.display='none'; loadFolders(); loadNotes(); } }
+
+    // Авторизация
+    function showAuthScreen(){ 
+        authWidget.innerHTML=`<div style="display:flex;gap:8px;"><button id="loginEmailBtn">📧 Вход</button><button id="loginGoogleBtn">🔐 Google</button><button id="registerBtn">📝 Регистрация</button></div>`; 
+        document.getElementById('loginEmailBtn')?.addEventListener('click',()=>{ const e=prompt('Email'); const p=prompt('Пароль'); if(e&&p) signInWithEmailAndPassword(auth,e,p).catch(err=>alert(err.message)); }); 
+        document.getElementById('loginGoogleBtn')?.addEventListener('click',()=>signInWithPopup(auth,googleProvider).catch(err=>alert(err.message))); 
+        document.getElementById('registerBtn')?.addEventListener('click',()=>{ const e=prompt('Email'); const p=prompt('Пароль (мин 6)'); if(e&&p) createUserWithEmailAndPassword(auth,e,p).catch(err=>alert(err.message)); }); 
+        document.querySelector('.week-planner')?.setAttribute('style','display:none'); 
+        tasksContainer.style.display='none'; 
+        document.getElementById('analyticsCard').style.display='none'; 
+    }
+    function showApp(){ 
+        authWidget.innerHTML=`<span>👤 ${currentUser.email}</span><button id="signOutBtn">Выйти</button>`; 
+        document.getElementById('signOutBtn')?.addEventListener('click',()=>signOut(auth)); 
+        document.querySelector('.week-planner')?.setAttribute('style','display:block'); 
+        tasksContainer.style.display='grid'; 
+        document.getElementById('analyticsCard').style.display='block'; 
+        subscribeToTasks(currentUser.uid); 
+        loadOkrs(); loadFolders(); loadNotes(); 
+        if(!currentFolderId && folders.length) currentFolderId=folders.find(f=>f.name==='Новое')?.id; 
+        if(currentFolderId) currentFolderTitle.textContent=escapeHtml(folders.find(f=>f.id===currentFolderId)?.name||'Заметки'); 
+        renderFoldersList(); renderNotesList(); 
+    }
+
+    onAuthStateChanged(auth,(user)=>{ currentUser=user; if(user) showApp(); else { if(unsubscribeTasks) unsubscribeTasks(); tasks=[]; renderTasksGrid(); showAuthScreen(); } });
+
+    // Обработчики
+    showCreateBtn?.addEventListener('click',()=>taskFormDiv.style.display='block');
+    cancelTaskBtn?.addEventListener('click',()=>taskFormDiv.style.display='none');
+    addTaskBtn?.addEventListener('click',addTask);
+    document.getElementById('addTagBtn')?.addEventListener('click',()=>{ const input=document.getElementById('tagInput'); const tag=input.value.trim().toLowerCase(); if(tag && ![...document.querySelectorAll('#tempTagsContainer .tag-badge')].some(el=>el.dataset.tag===tag)){ const span=document.createElement('span'); span.className='tag-badge'; span.dataset.tag=tag; span.innerHTML=`#${escapeHtml(tag)} <button class="remove-temp-tag" style="background:none;border:none;cursor:pointer;">✖</button>`; span.querySelector('.remove-temp-tag').addEventListener('click',()=>span.remove()); document.getElementById('tempTagsContainer').appendChild(span); input.value=''; } });
+    tagFilterSelect?.addEventListener('change',e=>{currentTagFilter=e.target.value; renderTasksGrid();});
+    statusFilterSelect?.addEventListener('change',e=>{currentStatusFilter=e.target.value; renderTasksGrid();});
+    archiveToggleBtn?.addEventListener('click',()=>{showArchived=!showArchived; archiveToggleBtn.textContent=showArchived?'📂 Показать активные':'📦 Архив (скрыт)'; renderTasksGrid();});
+    deleteAllBtn?.addEventListener('click',()=>confirmDeleteModal.style.display='flex');
+    confirmDeleteYes?.addEventListener('click',async()=>{ await deleteAllUserData(); confirmDeleteModal.style.display='none'; });
+    confirmDeleteNo?.addEventListener('click',()=>confirmDeleteModal.style.display='none');
+    privacyBtn?.addEventListener('click',()=>privacyModal.style.display='flex');
+    closePrivacyBtn?.addEventListener('click',()=>privacyModal.style.display='none');
+    addObjectiveBtn?.addEventListener('click',addObjective);
+    addFolderBtn?.addEventListener('click',addFolder);
+    addNoteBtn?.addEventListener('click',()=>openNoteModal());
+    prevWeekBtn?.addEventListener('click',prevWeek);
+    nextWeekBtn?.addEventListener('click',nextWeek);
+    document.getElementById('confirmLinkBtn')?.addEventListener('click',confirmLink);
+    document.getElementById('closeLinkModal')?.addEventListener('click',()=>document.getElementById('linkTaskModal').style.display='none');
+    document.getElementById('saveNoteBtn')?.addEventListener('click',saveNote);
+    document.getElementById('cancelNoteBtn')?.addEventListener('click',()=>document.getElementById('noteModal').style.display='none');
+    document.getElementById('deleteNoteBtn')?.addEventListener('click',deleteNote);
+    document.getElementById('saveFolderBtn')?.addEventListener('click',saveFolder);
+    document.getElementById('cancelFolderBtn')?.addEventListener('click',()=>document.getElementById('folderModal').style.display='none');
+    document.getElementById('deleteFolderBtn')?.addEventListener('click',deleteFolderModal);
+    
+    document.querySelectorAll('.nav-btn:not(.disabled)').forEach(btn=>{ btn.addEventListener('click',()=>{ document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active')); document.getElementById(`${btn.dataset.tab}Tab`).classList.add('active'); }); });
+    document.querySelectorAll('.dropdown-content a').forEach(a=>{ a.addEventListener('click',()=>{ document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active')); document.getElementById(`${a.dataset.tab}Tab`).classList.add('active'); }); });
+    
+    const viewBtns=document.querySelectorAll('#weekViewToggle button'); 
+    viewBtns.forEach(btn=>{ btn.addEventListener('click',()=>{ viewBtns.forEach(b=>b.classList.remove('active')); btn.classList.add('active'); weekViewMode=btn.dataset.view; renderWeekPlanner(); localStorage.setItem('stodol_week_view',weekViewMode); }); });
+    const savedView=localStorage.getItem('stodol_week_view'); 
+    if(savedView==='horizontal'||savedView==='vertical'){ weekViewMode=savedView; document.querySelector(`#weekViewToggle button[data-view="${weekViewMode}"]`)?.classList.add('active'); }
+    updateWeekDateRange();
+    
+    if(document.getElementById('statsChart')){ chartInstance=new Chart(document.getElementById('statsChart').getContext('2d'),{type:'bar',data:{labels:[],datasets:[{label:'Добавлено',data:[],backgroundColor:'#5fa7cf'},{label:'Выполнено',data:[],backgroundColor:'#4c9f70'}]}}); }
+    window.onclick=e=>{ if(e.target.classList.contains('modal')) e.target.style.display='none'; };
+</script>
+</body>
+</html>
