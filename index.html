@@ -117,19 +117,31 @@ window.showAuth = () => {
 
 /* REGISTER */
 window.register = async () => {
-  const email = emailInput.value;
-  const password = passwordInput.value;
+  try {
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
 
-  await createUserWithEmailAndPassword(auth, email, password);
+    await createUserWithEmailAndPassword(auth, email, password);
+
+  } catch (e) {
+    alert(e.message);
+    console.error(e);
+  }
 };
 
 
 /* LOGIN (реальный, не fake) */
 window.login = async () => {
-  const email = emailInput.value;
-  const password = passwordInput.value;
+  try {
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
 
-  await signInWithEmailAndPassword(auth, email, password);
+    await signInWithEmailAndPassword(auth, email, password);
+
+  } catch (e) {
+    alert(e.message);
+    console.error(e);
+  }
 };
 
 
@@ -160,7 +172,7 @@ window.logout = () => {
 
 /* СОЗДАНИЕ */
 window.addTask = async () => {
-  const text = taskInput.value;
+  const text = document.getElementById('taskInput').value;
 
   if (!text) return;
 
