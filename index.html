@@ -212,6 +212,13 @@ window.openTab = (id) => {
 };
 
 </script>
+
+    <!-- ✅ Service Worker регистрация — САМАЯ ПОСЛЕДНЯЯ -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js');
+        }
+    </script>
   
 </body>
 </html>
