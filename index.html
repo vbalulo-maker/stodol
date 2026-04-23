@@ -53,7 +53,10 @@ nav { display:flex; gap:15px; background:#020617; padding:10px; }
 
 <div id="tasks" class="container tab hidden">
 <h2>Tasks</h2>
-
+<button onclick="setFilter('all')">Все</button>
+<button onclick="setFilter('todo')">Активные</button>
+<button onclick="setFilter('done')">Завершённые</button>
+  
 <input id="taskInput" placeholder="Новая задача">
 <button onclick="addTask()">Добавить</button>
 
@@ -80,7 +83,9 @@ import {
   addDoc,
   query,
   where,
-  onSnapshot
+  onSnapshot,
+  updateDoc,
+  doc
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 
@@ -105,7 +110,8 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 let currentUser = null;
-
+let currentFilter = "all";
+window.tasksCache = [];
 
 /* AUTH UI */
 
@@ -172,17 +178,20 @@ window.logout = () => {
 
 /* СОЗДАНИЕ */
 window.addTask = async () => {
-  const text = document.getElementById('taskInput').value;
+  const input = document.getElementById('taskInput');
+  const text = input.value;
 
-  if (!text) return;
+  if (!text.trim()) return;
 
   await addDoc(collection(db, "tasks"), {
     text: text,
-    userId: currentUser.uid,
-    createdAt: Date.now()
+    status: "todo",
+    dueDate: null,
+    createdAt: Date.now(),
+    userId: currentUser.uid
   });
 
-  taskInput.value = "";
+  input.value = "";
 };
 
 
@@ -196,7 +205,12 @@ function startTasksListener() {
 
   onSnapshot(q, (snapshot) => {
 
-    const tasks = snapshot.docs.map(doc => doc.data());
+    const tasks = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+}));
+
+window.tasksCache = tasks;
 
     renderTasks(tasks);
 
@@ -207,26 +221,59 @@ function startTasksListener() {
 /* RENDER */
 function renderTasks(tasks) {
 
-  document.getElementById('tasksCount').innerText = tasks.length;
+  const done = tasks.filter(t => t.status === 'done').length;
+  const total = tasks.length;
+
+  document.getElementById('tasksCount').innerText = total;
 
   const list = document.getElementById('tasksList');
   list.innerHTML = "";
 
-  tasks.forEach(t => {
-    const div = document.createElement('div');
-    div.className = "card";
-    div.innerText = t.text;
-    list.appendChild(div);
+  const filtered = tasks.filter(t => {
+    if (currentFilter === "all") return true;
+    return t.status === currentFilter;
   });
 
+  filtered.forEach(t => {
+    const div = document.createElement('div');
+    div.className = "card";
+
+    div.innerHTML = `
+      <div>${t.text}</div>
+      <div>Status: ${t.status || 'todo'}</div>
+      <button onclick="updateStatus('${t.id}', 'done')">✔</button>
+    `;
+
+    list.appendChild(div);
+  });
 }
 
+  window.updateStatus = async (id, status) => {
+  await updateDoc(doc(db, "tasks", id), {
+    status: status
+  });
+};
 
 /* NAV */
 window.openTab = (id) => {
   document.querySelectorAll('.tab').forEach(t => t.classList.add('hidden'));
   document.getElementById(id).classList.remove('hidden');
 };
+
+window.setFilter = (filter) => {
+  currentFilter = filter;
+  renderTasks(window.tasksCache);
+};
+
+document.addEventListener("DOMContentLoaded", () => {
+  const input = document.getElementById("taskInput");
+
+  if (input) {
+    input.addEventListener("keypress", e => {
+      if (e.key === "Enter") addTask();
+    });
+  }
+});
 
 </script>
 
