@@ -41,6 +41,7 @@ nav { display:flex; gap:15px; background:#020617; padding:10px; }
 <nav>
 <div onclick="openTab('dashboard')">Dashboard</div>
 <div onclick="openTab('tasks')">Tasks</div>
+<div onclick="showToday()">Today</div>
 <div onclick="logout()">Logout</div>
 </nav>
 
@@ -273,19 +274,22 @@ function renderTasks(tasks) {
   filtered.forEach(t => {
 
     const isOverdue = t.dueDate && t.dueDate < today;
+    const isToday = t.dueDate === today;
 
     const div = document.createElement('div');
     div.className = "card";
 
     div.innerHTML = `
-      <div style="color:${isOverdue ? 'red' : 'white'}">
-        ${t.text}
-      </div>
+    <div style="
+    color:${isOverdue ? 'red' : isToday ? '#22c55e' : 'white'}
+    ">
 
       <div>Due: ${t.dueDate || '—'}</div>
       <div>Status: ${t.status || 'todo'}</div>
 
       <button onclick="updateStatus('${t.id}', 'done')">✔</button>
+      <button onclick="setToday('${t.id}')">Today</button>
+      <button onclick="setTomorrow('${t.id}')">Tomorrow</button>
       <button onclick="deleteTask('${t.id}')">🗑</button>
     `;
 
@@ -300,6 +304,34 @@ function renderTasks(tasks) {
   });
 };
 
+window.setToday = async (id) => {
+  const today = new Date().toISOString().split('T')[0];
+
+  await updateDoc(doc(db, "tasks", id), {
+    dueDate: today
+  });
+};
+
+window.showToday = () => {
+  const today = new Date().toISOString().split('T')[0];
+
+  const todayTasks = window.tasksCache.filter(t => t.dueDate === today);
+
+  renderTasks(todayTasks);
+
+  openTab('tasks');
+};
+
+window.setTomorrow = async (id) => {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  const tomorrow = d.toISOString().split('T')[0];
+
+  await updateDoc(doc(db, "tasks", id), {
+    dueDate: tomorrow
+  });
+};
+
 /* NAV */
 window.openTab = (id) => {
   document.querySelectorAll('.tab').forEach(t => t.classList.add('hidden'));
@@ -309,6 +341,16 @@ window.openTab = (id) => {
 window.setFilter = (filter) => {
   currentFilter = filter;
   renderTasks(window.tasksCache);
+};
+
+window.editTask = async (id, oldText) => {
+  const newText = prompt("Измени задачу:", oldText);
+
+  if (!newText || !newText.trim()) return;
+
+  await updateDoc(doc(db, "tasks", id), {
+    text: newText
+  });
 };
 
 document.addEventListener("DOMContentLoaded", () => {
