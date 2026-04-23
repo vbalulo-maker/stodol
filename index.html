@@ -35,7 +35,15 @@ nav div {
 nav div:hover {
   opacity: 1;
 }
-  
+
+#taskModal {
+  display: none;
+}
+
+#taskModal.active {
+  display: flex;
+}
+
 </style>
 </head>
 
@@ -468,11 +476,11 @@ window.openTaskModal = (id) => {
   document.getElementById('modalTitle').innerText = task.text;
   document.getElementById('commentInput').value = task.comment || "";
 
-  document.getElementById('taskModal').classList.remove('hidden');
+  document.getElementById('taskModal').classList.remove('active');
 };
 
 window.closeModal = () => {
-  document.getElementById('taskModal').classList.add('hidden');
+  document.getElementById('taskModal').classList.add('active');
 };
 
 window.saveComment = async () => {
@@ -508,7 +516,6 @@ document.addEventListener("DOMContentLoaded", () => {
 position:fixed;
 top:0; left:0; right:0; bottom:0;
 background:rgba(0,0,0,0.7);
-display:flex;
 align-items:center;
 justify-content:center;
 z-index:2000;
