@@ -83,6 +83,9 @@ nav div:hover {
 <button onclick="setFilter('all')">Все</button>
 <button onclick="setFilter('todo')">Активные</button>
 <button onclick="setFilter('done')">Завершённые</button>
+<button onclick="moveOverdueToTomorrow()">
+  Перенести просроченные на завтра
+</button>
   
 <input id="taskInput" placeholder="Новая задача">
 <input type="date" id="dueDateInput">
@@ -139,7 +142,7 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 let currentUser = null;
-let currentFilter = "all";
+let currentFilter = "todo";
 window.tasksCache = [];
 
 /* AUTH UI */
@@ -192,6 +195,9 @@ onAuthStateChanged(auth, (user) => {
       "С возвращением, " + user.email;
 
     startTasksListener();
+    setTimeout(() => {
+  showToday();
+}, 300);
   }
 });
 
@@ -228,6 +234,24 @@ window.addTask = async () => {
   dateInput.value = "";
 };
 
+
+  window.moveOverdueToTomorrow = async () => {
+  const today = new Date().toISOString().split('T')[0];
+
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  const tomorrow = d.toISOString().split('T')[0];
+
+  const overdue = window.tasksCache.filter(
+    t => t.dueDate && t.dueDate < today
+  );
+
+  for (let t of overdue) {
+    await updateDoc(doc(db, "tasks", t.id), {
+      dueDate: tomorrow
+    });
+  }
+};
 
 /* REALTIME (onSnapshot) */
 function startTasksListener() {
@@ -320,7 +344,9 @@ div.innerHTML = `
   <div>Due: ${t.dueDate || '—'}</div>
   <div>Status: ${t.status || 'todo'}</div>
 
-  <button onclick="updateStatus('${t.id}', 'done')">✔</button>
+  <button onclick="toggleStatus('${t.id}', '${t.status}')">
+  ${t.status === 'done' ? '↩' : '✔'}
+</button>
   <button onclick="setToday('${t.id}')">Today</button>
   <button onclick="setTomorrow('${t.id}')">Tomorrow</button>
   <button onclick="deleteTask('${t.id}')">🗑</button>
@@ -338,6 +364,14 @@ div.innerHTML = `
   window.updateStatus = async (id, status) => {
   await updateDoc(doc(db, "tasks", id), {
     status: status
+  });
+};
+
+  window.toggleStatus = async (id, currentStatus) => {
+  const newStatus = currentStatus === 'done' ? 'todo' : 'done';
+
+  await updateDoc(doc(db, "tasks", id), {
+    status: newStatus
   });
 };
 
