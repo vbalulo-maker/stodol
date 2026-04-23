@@ -273,10 +273,7 @@ function renderTasks(tasks) {
   const done = tasks.filter(t => t.status === 'done').length;
   const overdue = tasks.filter(t => t.dueDate && t.dueDate < today).length;
   const todayTasks = tasks.filter(t => t.dueDate === today).length;
-  const priorityColor =
-  t.priority === 'high' ? 'orange' :
-  t.priority === 'low' ? '#64748b' :
-  'white';
+
   
   // 4. Обновляем dashboard
   document.getElementById('tasksCount').innerText = total;
@@ -304,13 +301,16 @@ function renderTasks(tasks) {
 
     const isOverdue = t.dueDate && t.dueDate < today;
     const isToday = t.dueDate === today;
-
+    const priorityColor =
+  t.priority === 'high' ? 'orange' :
+  t.priority === 'low' ? '#64748b' :
+  'white';
     const div = document.createElement('div');
     div.className = "card";
 
 div.innerHTML = `
 <div style="
-  color:${isOverdue ? 'red' : isToday ? '#22c55e' : 'white'}
+  color:${isOverdue ? 'red' : isToday ? '#22c55e' : priorityColor}
 ">
 
   <span onclick="editTask('${t.id}', '${t.text}')">
