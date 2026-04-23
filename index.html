@@ -6,36 +6,12 @@
 <title>Stodol MVP</title>
 
 <style>
-body { 
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif; /* Родной шрифт Apple */; 
-  margin:0; 
-  background: var(--icloud-bg-primary); 
-  color: var(--icloud-text-primary); 
-}
+body { font-family: sans-serif; margin:0; background:#0f172a; color:white; }
 .container { padding:20px; }
 .hidden { display:none; }
 input, button { padding:10px; margin:5px 0; }
 .btn { background:#6366f1; color:white; border:none; cursor:pointer; }
 .card { background:#1e293b; padding:15px; margin-bottom:10px; border-radius:10px; }
-
-.task-item {
-  background-color: var(--icloud-glass-bg);
-  backdrop-filter: blur(20px); /* Эффект размытого стекла */
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  box-shadow: var(--icloud-shadow-sm);
-  border-radius: var(--icloud-radius-md);
-}
-
-.task-status[data-status="completed"] {
-  background-color: var(--icloud-green);
-  color: white;
-}
-
-button.primary {
-  background-color: var(--icloud-blue);
-  border-radius: var(--icloud-radius-sm);
-}
   
   nav {
   position: sticky;
