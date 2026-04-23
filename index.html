@@ -49,6 +49,8 @@ nav { display:flex; gap:15px; background:#020617; padding:10px; }
 <div class="card">
 Задач всего: <span id="tasksCount">0</span>
 </div>
+<div class="card">Сегодня: <span id="todayCount">0</span></div>
+<div class="card">Просрочено: <span id="overdueCount">0</span></div>
 </div>
 
 <div id="tasks" class="container tab hidden">
@@ -58,6 +60,7 @@ nav { display:flex; gap:15px; background:#020617; padding:10px; }
 <button onclick="setFilter('done')">Завершённые</button>
   
 <input id="taskInput" placeholder="Новая задача">
+<input type="date" id="dueDateInput">
 <button onclick="addTask()">Добавить</button>
 
 <div id="tasksList"></div>
@@ -85,7 +88,8 @@ import {
   where,
   onSnapshot,
   updateDoc,
-  doc
+  doc,
+  deleteDoc
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 
@@ -179,19 +183,23 @@ window.logout = () => {
 /* СОЗДАНИЕ */
 window.addTask = async () => {
   const input = document.getElementById('taskInput');
+  const dateInput = document.getElementById('dueDateInput');
+
   const text = input.value;
+  const dueDate = dateInput.value;
 
   if (!text.trim()) return;
 
   await addDoc(collection(db, "tasks"), {
     text: text,
     status: "todo",
-    dueDate: null,
+    dueDate: dueDate || null,
     createdAt: Date.now(),
     userId: currentUser.uid
   });
 
   input.value = "";
+  dateInput.value = "";
 };
 
 
@@ -217,35 +225,73 @@ window.tasksCache = tasks;
   });
 }
 
+  window.deleteTask = async (id) => {
+  await deleteDoc(doc(db, "tasks", id));
+};
 
 /* RENDER */
 function renderTasks(tasks) {
 
-  const done = tasks.filter(t => t.status === 'done').length;
-  const total = tasks.length;
+  // 1. Сортировка по дате
+  tasks.sort((a, b) => {
+    if (!a.dueDate) return 1;
+    if (!b.dueDate) return -1;
+    return new Date(a.dueDate) - new Date(b.dueDate);
+  });
 
+  // 2. Дата сегодня
+  const today = new Date().toISOString().split('T')[0];
+
+  // 3. Метрики
+  const total = tasks.length;
+  const done = tasks.filter(t => t.status === 'done').length;
+  const overdue = tasks.filter(t => t.dueDate && t.dueDate < today).length;
+  const todayTasks = tasks.filter(t => t.dueDate === today).length;
+
+  // 4. Обновляем dashboard
   document.getElementById('tasksCount').innerText = total;
 
+  if (document.getElementById('todayCount')) {
+    document.getElementById('todayCount').innerText = todayTasks;
+  }
+
+  if (document.getElementById('overdueCount')) {
+    document.getElementById('overdueCount').innerText = overdue;
+  }
+
+  // 5. Очищаем список
   const list = document.getElementById('tasksList');
   list.innerHTML = "";
 
+  // 6. Фильтр
   const filtered = tasks.filter(t => {
     if (currentFilter === "all") return true;
     return t.status === currentFilter;
   });
 
+  // 7. Рендер задач
   filtered.forEach(t => {
+
+    const isOverdue = t.dueDate && t.dueDate < today;
+
     const div = document.createElement('div');
     div.className = "card";
 
     div.innerHTML = `
-      <div>${t.text}</div>
+      <div style="color:${isOverdue ? 'red' : 'white'}">
+        ${t.text}
+      </div>
+
+      <div>Due: ${t.dueDate || '—'}</div>
       <div>Status: ${t.status || 'todo'}</div>
+
       <button onclick="updateStatus('${t.id}', 'done')">✔</button>
+      <button onclick="deleteTask('${t.id}')">🗑</button>
     `;
 
     list.appendChild(div);
   });
+
 }
 
   window.updateStatus = async (id, status) => {
