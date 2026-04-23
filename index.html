@@ -275,8 +275,21 @@ window.tasksCache = tasks;
   });
 }
 
-  window.deleteTask = async (id) => {
+window.deleteTask = async (id) => {
+  const ok = confirm("Удалить задачу?");
+
+  if (!ok) return;
+
   await deleteDoc(doc(db, "tasks", id));
+  closeModal();
+};
+
+  window.onclick = (e) => {
+  const modal = document.getElementById('taskModal');
+
+  if (e.target === modal) {
+    closeModal();
+  }
 };
 
 /* RENDER */
@@ -333,25 +346,22 @@ function renderTasks(tasks) {
     div.className = "card";
 
 div.innerHTML = `
-<div style="
-  color:${isOverdue ? 'red' : isToday ? '#22c55e' : priorityColor}
+<div onclick="openTaskModal('${t.id}')" style="
+display:flex;
+justify-content:space-between;
+align-items:center;
+cursor:pointer;
 ">
 
-  <span onclick="editTask('${t.id}', '${t.text}')">
-    ${t.text}
-  </span>
+  <div>${t.text}</div>
 
-  <div>Due: ${t.dueDate || '—'}</div>
-  <div>Status: ${t.status || 'todo'}</div>
+  <div style="opacity:0.7">
+    ${t.status === 'done' ? '✔' : ''}
+  </div>
 
-  <button onclick="toggleStatus('${t.id}', '${t.status}')">
-  ${t.status === 'done' ? '↩' : '✔'}
-</button>
-  <button onclick="setToday('${t.id}')">Today</button>
-  <button onclick="setTomorrow('${t.id}')">Tomorrow</button>
-  <button onclick="deleteTask('${t.id}')">🗑</button>
-  <button onclick="setPriority('${t.id}', 'high')">🔥</button>
-  <button onclick="setPriority('${t.id}', 'low')">🧊</button>
+  <div style="opacity:0.7">
+    ${t.dueDate || '—'}
+  </div>
 
 </div>
 `;
@@ -446,6 +456,35 @@ window.editTask = async (id, oldText) => {
   });
 };
 
+let currentTaskId = null;
+
+window.openTaskModal = (id) => {
+  const task = window.tasksCache.find(t => t.id === id);
+
+  if (!task) return;
+
+  currentTaskId = id;
+
+  document.getElementById('modalTitle').innerText = task.text;
+  document.getElementById('commentInput').value = task.comment || "";
+
+  document.getElementById('taskModal').classList.remove('hidden');
+};
+
+window.closeModal = () => {
+  document.getElementById('taskModal').classList.add('hidden');
+};
+
+window.saveComment = async () => {
+  const text = document.getElementById('commentInput').value;
+
+  await updateDoc(doc(db, "tasks", currentTaskId), {
+    comment: text
+  });
+
+  closeModal();
+};
+
 document.addEventListener("DOMContentLoaded", () => {
   const input = document.getElementById("taskInput");
 
@@ -464,6 +503,44 @@ document.addEventListener("DOMContentLoaded", () => {
             navigator.serviceWorker.register('/sw.js');
         }
     </script>
+
+<div id="taskModal" class="hidden" style="
+position:fixed;
+top:0; left:0; right:0; bottom:0;
+background:rgba(0,0,0,0.7);
+display:flex;
+align-items:center;
+justify-content:center;
+z-index:2000;
+">
+
+  <div style="
+    background:#1e293b;
+    padding:20px;
+    border-radius:10px;
+    width:90%;
+    max-width:400px;
+  ">
+
+    <h3 id="modalTitle"></h3>
+
+    <textarea id="commentInput" placeholder="Комментарий" style="width:100%"></textarea>
+
+    <button onclick="saveComment()">Сохранить</button>
+
+    <hr>
+
+    <button onclick="updateStatus(currentTaskId, 'done')">✔ Завершить</button>
+    <button onclick="setToday(currentTaskId)">Today</button>
+    <button onclick="setTomorrow(currentTaskId)">Tomorrow</button>
+
+    <hr>
+
+    <button onclick="deleteTask(currentTaskId)">🗑 Удалить</button>
+    <button onclick="closeModal()">Закрыть</button>
+
+  </div>
+</div>
   
 </body>
 </html>
