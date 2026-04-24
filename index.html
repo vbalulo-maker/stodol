@@ -6,25 +6,33 @@
 <title>Stodol MVP</title>
 
 <style>
-body { font-family: sans-serif; margin:0; background:#0f172a; color:white; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  margin:0;
+  background:#f5f5f7;
+  color:#1d1d1f;
+}
 .container { padding:20px; }
 .hidden { display:none; }
 input, button { padding:10px; margin:5px 0; }
 .btn { background:#6366f1; color:white; border:none; cursor:pointer; }
-.card { background:#1e293b; padding:15px; margin-bottom:10px; border-radius:10px; }
+.card {
+  background:white;
+  padding:15px;
+  margin-bottom:10px;
+  border-radius:12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
   
-  nav {
+nav {
   position: sticky;
   top: 0;
-
-  display: flex;
-  justify-content: center;
-  gap: 20px;
-
-  background: #020617;
-  padding: 8px 0;
-
-  z-index: 1000;
+  display:flex;
+  justify-content:center;
+  gap:20px;
+  background:white;
+  border-bottom:1px solid #ddd;
+  padding:10px;
 }
 
 nav div {
@@ -85,6 +93,7 @@ nav div:hover {
 </div>
 <div class="card">Сегодня: <span id="todayCount">0</span></div>
 <div class="card">Просрочено: <span id="overdueCount">0</span></div>
+<div>Сделано: <span id="todayDone"></span></div>
 </div>
 
 <div id="tasks" class="container tab hidden">
@@ -206,7 +215,7 @@ onAuthStateChanged(auth, (user) => {
     startTasksListener();
     setTimeout(() => {
   showToday();
-}, 300);
+}, 200);
   }
 });
 
@@ -227,6 +236,16 @@ window.addTask = async () => {
 
   const text = input.value;
   const dueDate = dateInput.value;
+  if (dueDate) {
+  const count = window.tasksCache.filter(
+    t => t.dueDate === dueDate && t.status !== 'done'
+  ).length;
+
+  if (count >= 5) {
+    alert("Слишком много задач на этот день (макс 5)");
+    return;
+  }
+}
 
   if (!text.trim()) return;
 
@@ -305,11 +324,20 @@ window.deleteTask = async (id) => {
 function renderTasks(tasks) {
 
   // 1. Сортировка по дате
-  tasks.sort((a, b) => {
-    if (!a.dueDate) return 1;
-    if (!b.dueDate) return -1;
-    return new Date(a.dueDate) - new Date(b.dueDate);
-  });
+tasks.sort((a, b) => {
+
+  const priorityOrder = { high: 0, medium: 1, low: 2 };
+
+  const pA = priorityOrder[a.priority || 'medium'];
+  const pB = priorityOrder[b.priority || 'medium'];
+
+  if (pA !== pB) return pA - pB;
+
+  if (!a.dueDate) return 1;
+  if (!b.dueDate) return -1;
+
+  return new Date(a.dueDate) - new Date(b.dueDate);
+});
 
   // 2. Дата сегодня
   const today = new Date().toISOString().split('T')[0];
@@ -319,19 +347,30 @@ function renderTasks(tasks) {
   const done = tasks.filter(t => t.status === 'done').length;
   const overdue = tasks.filter(t => t.dueDate && t.dueDate < today).length;
   const todayTasks = tasks.filter(t => t.dueDate === today).length;
+  const overloaded = todayTasks > 5;
+  const todayDone = tasks.filter(
+  t => t.dueDate === today && t.status === 'done'
+).length;
 
+const todayTotal = tasks.filter(
+  t => t.dueDate === today
+).length;
   
   // 4. Обновляем dashboard
   document.getElementById('tasksCount').innerText = total;
 
   if (document.getElementById('todayCount')) {
-    document.getElementById('todayCount').innerText = todayTasks;
+    document.getElementById('todayCount').innerText =
+  overloaded ? todayTasks + " ⚠️" : todayTasks;
   }
 
   if (document.getElementById('overdueCount')) {
     document.getElementById('overdueCount').innerText = overdue;
   }
 
+  document.getElementById('todayDone').innerText =
+  `${todayDone} / ${todayTotal}`;
+  
   // 5. Очищаем список
   const list = document.getElementById('tasksList');
   list.innerHTML = "";
@@ -342,33 +381,52 @@ function renderTasks(tasks) {
     return t.status === currentFilter;
   });
 
+  if (filtered.length === 0) {
+  list.innerHTML = `
+    <div class="card">
+      Нет задач. Добавь хотя бы одну на сегодня.
+    </div>
+  `;
+  return;
+}
+
   // 7. Рендер задач
   filtered.forEach(t => {
+const priorityColor =
+  t.priority === 'high' ? '#ff9f0a' :
+  t.priority === 'low' ? '#8e8e93' :
+  '#1d1d1f';
 
-    const isOverdue = t.dueDate && t.dueDate < today;
-    const isToday = t.dueDate === today;
-    const priorityColor =
-  t.priority === 'high' ? 'orange' :
-  t.priority === 'low' ? '#64748b' :
-  'white';
+const today = new Date().toISOString().split('T')[0];
+const isOverdue = t.dueDate && t.dueDate < today;
+const isToday = t.dueDate === today;
     const div = document.createElement('div');
     div.className = "card";
 
 div.innerHTML = `
-<div onclick="openTaskModal('${t.id}')" style="
+<div style="
 display:flex;
 justify-content:space-between;
 align-items:center;
 cursor:pointer;
+" onclick="openTaskModal('${t.id}')">
+
+  <div style="
+  flex:1;
+  color:${
+    isOverdue ? '#ff3b30' :
+    isToday ? '#34c759' :
+    priorityColor
+  };
 ">
+  ${t.text}
+</div>
 
-  <div>${t.text}</div>
-
-  <div style="opacity:0.7">
-    ${t.status === 'done' ? '✔' : ''}
+  <div style="width:60px;text-align:center;">
+    ${t.status === 'done' ? '✔' : '•'}
   </div>
 
-  <div style="opacity:0.7">
+  <div style="width:100px;text-align:right;">
     ${t.dueDate || '—'}
   </div>
 
@@ -413,18 +471,45 @@ window.showToday = () => {
 };
 
 window.showWeek = () => {
+  const container = document.getElementById('tasksList');
+  container.innerHTML = "";
+
   const today = new Date();
 
-  const weekTasks = window.tasksCache.filter(t => {
-    if (!t.dueDate) return false;
+  for (let i = 0; i < 7; i++) {
+    const d = new Date();
+    d.setDate(today.getDate() + i);
 
-    const d = new Date(t.dueDate);
-    const diff = (d - today) / (1000 * 60 * 60 * 24);
+    const dateStr = d.toISOString().split('T')[0];
 
-    return diff >= 0 && diff <= 7;
-  });
+    const dayTasks = window.tasksCache.filter(
+      t => t.dueDate === dateStr
+    );
 
-  renderTasks(weekTasks);
+    const dayBlock = document.createElement('div');
+    dayBlock.className = "card";
+
+    dayBlock.innerHTML = `
+      <h3>${dateStr}</h3>
+      <div id="day-${dateStr}"></div>
+    `;
+
+    container.appendChild(dayBlock);
+
+    const list = dayBlock.querySelector(`#day-${dateStr}`);
+
+    dayTasks.forEach(t => {
+      const item = document.createElement('div');
+
+      item.innerHTML = `
+        ${t.text}
+        <button onclick="setToday('${t.id}')">→ Today</button>
+      `;
+
+      list.appendChild(item);
+    });
+  }
+
   openTab('tasks');
 };
 
