@@ -247,27 +247,6 @@ window.addTask = async () => {
   }
 }
 
-  if (dueDate) {
-  const d = new Date(dueDate);
-  const weekStart = new Date(d);
-  weekStart.setDate(d.getDate() - d.getDay());
-
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekStart.getDate() + 7);
-
-  const weeklyCount = window.tasksCache.filter(t => {
-    if (!t.dueDate) return false;
-
-    const td = new Date(t.dueDate);
-    return td >= weekStart && td <= weekEnd;
-  }).length;
-
-  if (weeklyCount >= 20) {
-    alert("Слишком много задач на неделю");
-    return;
-  }
-}
-
   if (!text.trim()) return;
 
   await addDoc(collection(db, "tasks"), {
@@ -319,22 +298,6 @@ function startTasksListener() {
 
 window.tasksCache = tasks;
 
-const today = new Date().toISOString().split('T')[0];
-
-tasks.forEach(async (t) => {
-  if (t.dueDate && t.dueDate < today && t.status !== 'done') {
-
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-
-    const tomorrow = d.toISOString().split('T')[0];
-
-    await updateDoc(doc(db, "tasks", t.id), {
-      dueDate: tomorrow
-    });
-  }
-});
-    
     renderTasks(tasks);
 
   });
@@ -440,9 +403,13 @@ const isToday = t.dueDate === today;
     const div = document.createElement('div');
     div.className = "card";
 
-div.firstElementChild.addEventListener("click", () => {
-  openTaskModal(t.id);
-});
+div.innerHTML = `
+<div style="
+display:flex;
+justify-content:space-between;
+align-items:center;
+cursor:pointer;
+" onclick="openTaskModal('${t.id}')">
 
   <div style="
   flex:1;
@@ -523,11 +490,8 @@ window.showWeek = () => {
     dayBlock.className = "card";
 
     dayBlock.innerHTML = `
-    <h3>${dateStr}</h3>
-    <div id="day-${dateStr}" 
-     ondragover="event.preventDefault()"
-     ondrop="dropTask(event, '${dateStr}')">
-    </div>
+      <h3>${dateStr}</h3>
+      <div id="day-${dateStr}"></div>
     `;
 
     container.appendChild(dayBlock);
@@ -537,11 +501,10 @@ window.showWeek = () => {
     dayTasks.forEach(t => {
       const item = document.createElement('div');
 
-    item.innerHTML = `
-    <div draggable="true" ondragstart="dragTask(event, '${t.id}')">
-      ${t.text}
-    </div>
-    `;
+      item.innerHTML = `
+        ${t.text}
+        <button onclick="setToday('${t.id}')">→ Today</button>
+      `;
 
       list.appendChild(item);
     });
@@ -614,18 +577,6 @@ window.saveComment = async () => {
   });
 
   closeModal();
-};
-
-window.dragTask = (e, id) => {
-  e.dataTransfer.setData("taskId", id);
-};
-
-window.dropTask = async (e, dateStr) => {
-  const id = e.dataTransfer.getData("taskId");
-
-  await updateDoc(doc(db, "tasks", id), {
-    dueDate: dateStr
-  });
 };
 
 document.addEventListener("DOMContentLoaded", () => {
