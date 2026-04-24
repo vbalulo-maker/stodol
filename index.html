@@ -247,6 +247,24 @@ window.addTask = async () => {
   }
 }
 
+  let currentTaskId = null;
+
+window.openTaskModal = (id) => {
+  const task = window.tasksCache.find(t => t.id === id);
+
+  if (!task) return;
+
+  currentTaskId = id;
+
+  document.getElementById('modalTitle').innerText = task.text;
+
+  document.getElementById('taskModal').style.display = "flex";
+};
+
+window.closeModal = () => {
+  document.getElementById('taskModal').style.display = "none";
+};
+  
   if (!text.trim()) return;
 
   await addDoc(collection(db, "tasks"), {
@@ -421,6 +439,10 @@ cursor:pointer;
 ">
   ${t.text}
 </div>
+
+div.addEventListener("click", () => {
+  openTaskModal(t.id);
+});
 
   <div style="width:60px;text-align:center;">
     ${t.status === 'done' ? '✔' : '•'}
@@ -630,6 +652,24 @@ z-index:2000;
     <hr>
 
     <button onclick="deleteTask(currentTaskId)">🗑 Удалить</button>
+    <button onclick="closeModal()">Закрыть</button>
+
+  </div>
+</div>
+
+  <div id="taskModal" style="
+display:none;
+position:fixed;
+top:0; left:0; right:0; bottom:0;
+background:rgba(0,0,0,0.5);
+align-items:center;
+justify-content:center;
+">
+
+  <div style="background:white;padding:20px;width:300px">
+
+    <h3 id="modalTitle"></h3>
+
     <button onclick="closeModal()">Закрыть</button>
 
   </div>
