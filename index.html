@@ -440,9 +440,7 @@ cursor:pointer;
   ${t.text}
 </div>
 
-div.addEventListener("click", () => {
-  openTaskModal(t.id);
-});
+
 
   <div style="width:60px;text-align:center;">
     ${t.status === 'done' ? '✔' : '•'}
@@ -454,6 +452,10 @@ div.addEventListener("click", () => {
 
 </div>
 `;
+
+    div.addEventListener("click", () => {
+  openTaskModal(t.id);
+});
 
     list.appendChild(div);
   });
